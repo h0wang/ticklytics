@@ -16,6 +16,25 @@ from .config import DATA_DIR, WATCHLIST, MAX_LOOKBACK
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
+def is_cache_fresh(ticker: str, interval: str, max_age_days: int | None = None) -> bool:
+    """Return True if cache exists and is younger than max_age_days.
+    
+    Args:
+        ticker:      ticker symbol (e.g. AAPL)
+        interval:    daily | weekly | monthly
+        max_age_days: override CACHE_FRESHNESS[interval] for this check.
+                     Pass None to use default from config.
+    """
+    import os
+    path = DATA_DIR / ticker.upper() / f"{interval}.csv"
+    if not path.exists():
+        return False
+    if max_age_days is None:
+        max_age_days = CACHE_FRESHNESS.get(interval, 1)
+    age_days = (datetime.now() - datetime.fromtimestamp(os.path.getmtime(path))).days
+    return age_days < max_age_days
+
+
 def load_from_cache(ticker: str, interval: str) -> pd.DataFrame | None:
     """Load cached OHLCV data for a ticker/interval, or None if not cached."""
     path = DATA_DIR / ticker.upper() / f"{interval}.csv"
