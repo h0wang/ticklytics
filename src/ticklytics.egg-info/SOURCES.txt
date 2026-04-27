@@ -1,0 +1,16 @@
+pyproject.toml
+src/ticklytics.egg-info/PKG-INFO
+src/ticklytics.egg-info/SOURCES.txt
+src/ticklytics.egg-info/dependency_links.txt
+src/ticklytics.egg-info/requires.txt
+src/ticklytics.egg-info/top_level.txt
+src/ticklytics_pkg/__init__.py
+src/ticklytics_pkg/__main__.py
+src/ticklytics_pkg/api.py
+src/ticklytics_pkg/cache.py
+src/ticklytics_pkg/cli.py
+src/ticklytics_pkg/config.py
+src/ticklytics_pkg/models.py
+tests/test_api.py
+tests/test_cache.py
+tests/test_cli.py

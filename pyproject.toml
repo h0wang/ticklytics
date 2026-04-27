@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ticklytics"
+version = "1.0.0"
+description = "OHLCV market data cache and REST API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{name = "Hong Wang"}]
+keywords = ["ohlcv", "market-data", "yfinance", "flask", "rest-api"]
+
+dependencies = [
+    "flask>=3.0",
+    "yfinance>=0.2",
+    "pandas",
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

@@ -1,0 +1,8 @@
+flask>=3.0
+yfinance>=0.2
+pandas
+requests
+
+[dev]
+pytest>=7.0
+pytest-cov

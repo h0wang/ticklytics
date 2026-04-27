@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: ticklytics
+Version: 1.0.0
+Summary: OHLCV market data cache and REST API
+Author: Hong Wang
+License-Expression: MIT
+Keywords: ohlcv,market-data,yfinance,flask,rest-api
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: flask>=3.0
+Requires-Dist: yfinance>=0.2
+Requires-Dist: pandas
+Requires-Dist: requests
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
