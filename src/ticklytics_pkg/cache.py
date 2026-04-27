@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-from .config import DATA_DIR, WATCHLIST, MAX_LOOKBACK
+from .config import DATA_DIR, WATCHLIST, MAX_LOOKBACK, CACHE_FRESHNESS
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
@@ -40,7 +40,15 @@ def load_from_cache(ticker: str, interval: str) -> pd.DataFrame | None:
     path = DATA_DIR / ticker.upper() / f"{interval}.csv"
     if not path.exists():
         return None
-    df = pd.read_csv(path, parse_dates=["Date"], index_col="Date")
+    # Handle both named-index (explicit "Date" column header) and
+    # unnamed-index (old app.py wrote the index as an unnamed first column)
+    try:
+        df = pd.read_csv(path, parse_dates=["Date"], index_col="Date")
+    except ValueError:
+        df = pd.read_csv(path, index_col=0)
+        if df.index.name is None or df.index.name == "":
+            df.index = pd.to_datetime(df.index)
+            df.index.name = "Date"
     return df
 
 
