@@ -6,11 +6,11 @@ python -m ticklytics serve [--host HOST] [--port PORT] [--debug]
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Blueprint, Flask, jsonify, request, send_from_directory
 
 from .cache import (
     load_from_cache,
@@ -30,13 +30,13 @@ from .models import (
 
 VERSION = "1.0.0"
 
+# ─── Reusable Blueprint ────────────────────────────────────────────────────────
 
-def create_app() -> Flask:
-    app = Flask(__name__)
+def create_blueprint() -> Blueprint:
+    """Create a Flask Blueprint with all ticklytics routes."""
+    bp = Blueprint("ticklytics", __name__)
 
-    # ─── Health ───────────────────────────────────────────────────────────────
-
-    @app.route("/health")
+    @bp.route("/health")
     def health():
         return jsonify(HealthResponse(
             status="ok",
@@ -46,20 +46,8 @@ def create_app() -> Flask:
             cache_dir=str(DATA_DIR),
         ).__dict__)
 
-    # ─── OHLCV endpoints ─────────────────────────────────────────────────────
-
-    @app.route("/ohlcv/<ticker>")
+    @bp.route("/ohlcv/<ticker>")
     def ohlcv(ticker: str):
-        """
-        Get OHLCV data for a ticker.
-
-        Query params:
-            interval  — daily (default) | weekly | monthly
-            start     — YYYY-MM-DD (default: 30 days ago)
-            end       — YYYY-MM-DD (default: today)
-            limit     — max rows (default: 1000)
-            refresh   — 1 to force-refresh from yfinance (default: 0)
-        """
         interval = request.args.get("interval", "daily")
         if interval not in ("daily", "weekly", "monthly"):
             return jsonify(ErrorResponse(
@@ -72,14 +60,10 @@ def create_app() -> Flask:
         end_str   = request.args.get("end")
         limit     = int(request.args.get("limit", 1000))
         refresh   = request.args.get("refresh", "0") == "1"
-
         ticker_upper = ticker.upper()
 
-        # Load from cache
         df = load_from_cache(ticker_upper, interval)
-
         if df is None or df.empty:
-            # Nothing in cache — try fetching
             try:
                 fetch_and_cache(ticker_upper, interval)
                 df = load_from_cache(ticker_upper, interval)
@@ -97,21 +81,17 @@ def create_app() -> Flask:
                 code=404,
             ).__dict__), 404
 
-        # Filter by date range
         if start_str:
             df = df[df.index >= pd.Timestamp(start_str)]
         if end_str:
             df = df[df.index <= pd.Timestamp(end_str) + pd.Timedelta(days=1)]
-
-        # Apply limit (most recent)
         if len(df) > limit:
             df = df.sort_index().tail(limit)
 
         return jsonify(format_ohlcv_response(ticker_upper, interval, df, cached=not refresh))
 
-    @app.route("/ohlcv/<ticker>/refresh", methods=["POST"])
+    @bp.route("/ohlcv/<ticker>/refresh", methods=["POST"])
     def ohlcv_refresh(ticker: str):
-        """Force-refresh OHLCV data for a ticker from yfinance."""
         interval = request.args.get("interval", "daily")
         if interval not in ("daily", "weekly", "monthly"):
             return jsonify(ErrorResponse(
@@ -139,11 +119,8 @@ def create_app() -> Flask:
                 code=500,
             ).__dict__), 500
 
-    # ─── Ticker endpoints ─────────────────────────────────────────────────────
-
-    @app.route("/tickers")
+    @bp.route("/tickers")
     def tickers():
-        """List all cached tickers with metadata."""
         all_tickers = list_cached_tickers()
         result = []
         for tk in all_tickers:
@@ -152,14 +129,10 @@ def create_app() -> Flask:
                 intervals=get_ticker_intervals(tk),
                 last_updated=get_ticker_last_updated(tk),
             ))
-        return jsonify({
-            "count": len(result),
-            "tickers": result,
-        })
+        return jsonify({"count": len(result), "tickers": result})
 
-    @app.route("/tickers/<ticker>")
+    @bp.route("/tickers/<ticker>")
     def ticker_info(ticker: str):
-        """Get metadata for a specific ticker."""
         ticker_upper = ticker.upper()
         intervals = get_ticker_intervals(ticker_upper)
         if not intervals:
@@ -174,33 +147,21 @@ def create_app() -> Flask:
             last_updated=get_ticker_last_updated(ticker_upper),
         ))
 
-    @app.route("/tickers/search")
+    @bp.route("/tickers/search")
     def ticker_search():
-        """Search tickers by prefix (query param ?q=AAP)."""
         q = (request.args.get("q") or "").upper()
         if not q:
             return jsonify({"count": 0, "tickers": []})
-        all_tickers = list_cached_tickers()
-        matches = [tk for tk in all_tickers if tk.startswith(q)]
-        return jsonify({
-            "count": len(matches),
-            "query": q,
-            "tickers": matches,
-        })
+        matches = [tk for tk in list_cached_tickers() if tk.startswith(q)]
+        return jsonify({"count": len(matches), "query": q, "tickers": matches})
 
-    # ─── Watchlist endpoint ───────────────────────────────────────────────────
-
-    @app.route("/watchlist")
+    @bp.route("/watchlist")
     def watchlist():
-        """Return watchlist sections."""
-        import json
         with open(WATCHLIST) as f:
             wl = json.load(f)
         return jsonify(wl)
 
-    # ─── OpenAPI spec (simple) ────────────────────────────────────────────────
-
-    @app.route("/")
+    @bp.route("/")
     def root():
         return jsonify({
             "name": "ticklytics",
@@ -217,6 +178,13 @@ def create_app() -> Flask:
             ],
         })
 
+    return bp
+
+
+def create_app() -> Flask:
+    """Create a standalone Flask app with ticklytics routes."""
+    app = Flask(__name__)
+    app.register_blueprint(create_blueprint())
     return app
 
 

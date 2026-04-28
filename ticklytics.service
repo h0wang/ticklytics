@@ -1,0 +1,16 @@
+[Unit]
+Description=ticklytics — OHLCV cache + REST API
+After=network.target
+
+[Service]
+Type=simple
+User=clawpi
+WorkingDirectory=/home/clawpi/.openclaw/scripts/ticklytics
+ExecStart=/home/clawpi/.openclaw/venv/bin/python3 -m ticklytics_pkg serve --port 5050
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
